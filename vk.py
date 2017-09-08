@@ -7,28 +7,34 @@ with open('./vk_token.txt') as f:
 
 
 USER_ID = input("Введите имя или ID пользователя: ")
+params = {'access_token': token, 'v': '5.67', 'fields': 'first_name,last_name', 'user_id': USER_ID, 'extended': 1}
 
 
 def account_friends(token):
-    params = {'access_token': token, 'v': '5.67', 'fields': 'first_name,last_name', 'user_id': USER_ID, 'extended': 1}
     r_profile = requests.get('https://api.vk.com/method/users.get', params).json()
     r_friends = requests.get('https://api.vk.com/method/friends.get', params).json()
-    r_groups = requests.get('https://api.vk.com/method/groups.get', params).json()
-
     acc_friends = [{i['last_name']: i['first_name']} for i in r_friends['response']['items']]
     friends_id = [i['id'] for i in r_friends['response']['items']]
-    groups_id = [i['id'] for i in r_groups['response']['items']]
 
     print('Список друзей пользователя {} {}'.format(r_profile['response'][0]['first_name'],
                                                     r_profile['response'][0]['last_name']),
           '\nВсего {} человека - {}'.format(r_friends['response']['count'], acc_friends))
+
+    return friends_id
+
+
+def account_groups(token):
+    r_groups = requests.get('https://api.vk.com/method/groups.get', params).json()
+    groups_id = [i['id'] for i in r_groups['response']['items']]
     print('Группы, в которых состоит наш пользователь: {}.\nВсего групп - {}.\n'.format(
         '; '.join([i['name'] for i in r_groups['response']['items']]), r_groups['response']['count']))
-    return friends_id, groups_id
+
+    return groups_id
 
 
-def groups_friends(token):
-    friends_id, groups_id = account_friends(token)
+def acc_individual_groups(token):
+    friends_id = account_friends(token)
+    groups_id = account_groups(token)
     print('\nОжидайте, данные обрабатываются ...\nНомер шага соответсвует номеру друга и их не может быть более чем {}'.format(
         len(friends_id)))
     counter = 0
@@ -53,12 +59,13 @@ def groups_friends(token):
 
 def output_data(token):
 
-    counter = groups_friends(token)
+    counter = acc_individual_groups(token)
     if len(counter) > 0:
         print('Данные успешно обработаны\n', 'Колво индивидуальных групп - {}шт.\n'.format(len(counter)))
     else:
         print('Данные успешно обработаны\n Индивидуальных групп НЕТ!')
 
+    # тянем информацию об индивидуальных группах аккаунта
     individ_groups = requests.get('https://api.vk.com/method/groups.getById',
                             {'group_ids': ','.join(list(map(str, counter))), 'fields': 'members_count'}).json()
 
